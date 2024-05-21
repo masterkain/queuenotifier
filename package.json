@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "start": "node index.js",
-    "opencommit": "opencommit"
+    "opencommit": "OCO_MODEL=gpt-4o opencommit"
   },
   "dependencies": {
     "opencommit": "git+https://github.com/di-sukharev/opencommit.git"

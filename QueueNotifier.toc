@@ -5,6 +5,7 @@
 ## Author: Kain
 ## Version: 1.0.0
 ## SavedVariablesPerCharacter: QueueNotifierDB
+## X-Curse-Project-ID: 1022175
 
 #@no-lib-strip@
 Libs\LibStub\LibStub.lua
