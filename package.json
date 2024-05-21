@@ -1,0 +1,15 @@
+{
+  "name": "your-project-name",
+  "version": "1.0.0",
+  "description": "Your project description",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "opencommit": "opencommit"
+  },
+  "dependencies": {
+    "opencommit": "git+https://github.com/di-sukharev/opencommit.git"
+  },
+  "author": "Your Name",
+  "license": "ISC"
+}
