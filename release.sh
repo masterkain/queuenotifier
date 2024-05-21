@@ -30,4 +30,4 @@ git commit -m "Release version $new_version"
 git tag -a "v$new_version" -m "Version $new_version"
 
 # Push the changes and the new tag to the remote repository
-git push origin main --follow-tags
+git push origin main --tags
