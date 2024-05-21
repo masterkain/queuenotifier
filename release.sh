@@ -22,6 +22,9 @@ new_version=$(increment_version "$current_version")
 # Update the .toc file with the new version
 sed -i.bak "s/## Version: $current_version/## Version: $new_version/" "$TOC_FILE"
 
+# Remove the backup file
+rm "${TOC_FILE}.bak"
+
 # Commit the changes
 git add .
 git commit -m "Release version $new_version"
