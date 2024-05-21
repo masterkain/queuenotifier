@@ -1,0 +1,2 @@
+notifier.py==0.4.6
+watchdog==4.0.0
