@@ -1,0 +1,23 @@
+## Interface: 100207, 110000
+## Title: QueueNotifier
+## Notes: Track and share battlefield queue statuses with your guild, and automatically take screenshots on queue pop.
+## IconTexture: Interface\AddOns\QueueNotifier\logo.tga
+## Author: Kain
+## Version: 1.0.3
+## SavedVariablesPerCharacter: QueueNotifierDB
+## X-Curse-Project-ID: 1022175
+
+#@no-lib-strip@
+Libs\LibStub\LibStub.lua
+Libs\AceAddon-3.0\AceAddon-3.0.xml
+Libs\AceConsole-3.0\AceConsole-3.0.xml
+Libs\AceDB-3.0\AceDB-3.0.xml
+Libs\AceConfig-3.0\AceConfig-3.0.xml
+Libs\AceGUI-3.0\AceGUI-3.0.xml
+Libs\AceComm-3.0\AceComm-3.0.xml
+Libs\AceSerializer-3.0\AceSerializer-3.0.xml
+Libs\LibDataBroker-1.1\LibDataBroker-1.1.lua
+Libs\LibDBIcon-1.0\embeds.xml
+#@end-no-lib-strip@
+
+QueueNotifier.lua
