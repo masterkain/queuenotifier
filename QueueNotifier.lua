@@ -50,6 +50,7 @@ function QueueNotifier:OnInitialize()
 			screenshotEnabled = false,
 			broadcastEnabled = true,
 			chatPrintEnabled = true,
+			autoDisableChatEnabled = false,
 			minimap = {
 				hide = false,
 			},
@@ -57,10 +58,12 @@ function QueueNotifier:OnInitialize()
 	})
 	self:SetupOptions()
 	self:RegisterEvent("UPDATE_BATTLEFIELD_STATUS", "OnEvent")
+	self:RegisterEvent("PLAYER_ENTERING_WORLD", "OnPlayerEnteringWorld")
 	self:RegisterComm(addonName)
 	self:PrintStartupMessage()
 	icon:Register(addonName, LDB, self.db.profile.minimap)
 	self.guildQueueTable = {} -- Initialize the table to track queue statuses
+	self.chatEnabled = true -- Track the chat status
 end
 
 function QueueNotifier:PrintStartupMessage()
@@ -146,24 +149,33 @@ function QueueNotifier:SetupOptions()
 						set = function(info, value)
 							self.db.profile.screenshotEnabled = value
 						end,
+						width = "full",
 						order = 1,
 					},
-					description = {
+					screenshotDescription = {
 						type = "description",
 						name = "When enabled, this feature saves a TGA screenshot when you are prompted to join. Screenshots are saved in the Screenshots folder of your WoW directory. Third-party applications can use these files to trigger notifications on various devices. Manage your screenshots regularly to avoid excessive disk usage.",
+						width = "full",
 						order = 2,
 					},
 					broadcastEnabled = {
 						type = "toggle",
 						name = "Send and Receive Guild Queue Data",
-						desc = "Enable or disable sharing and viewing guild members queue statuses. You need to be in guild for this functionality to work.",
+						desc = "Enable or disable sharing and viewing guild members queue statuses. You need to be in a guild for this functionality to work.",
 						get = function(info)
 							return self.db.profile.broadcastEnabled
 						end,
 						set = function(info, value)
 							self.db.profile.broadcastEnabled = value
 						end,
+						width = "full",
 						order = 3,
+					},
+					broadcastDescription = {
+						type = "description",
+						name = "When enabled, you can share and view your guild members' PvP queue statuses.",
+						width = "full",
+						order = 4,
 					},
 					chatPrintEnabled = {
 						type = "toggle",
@@ -175,7 +187,33 @@ function QueueNotifier:SetupOptions()
 						set = function(info, value)
 							self.db.profile.chatPrintEnabled = value
 						end,
-						order = 4,
+						width = "full",
+						order = 5,
+					},
+					chatPrintDescription = {
+						type = "description",
+						name = "When enabled, this feature will print queue statuses in the chat.",
+						width = "full",
+						order = 6,
+					},
+					autoDisableChatEnabled = {
+						type = "toggle",
+						name = "Auto Disable Chat During Solo Shuffle",
+						desc = "Enable or disable automatic chat disabling during solo shuffle matches.",
+						get = function(info)
+							return self.db.profile.autoDisableChatEnabled
+						end,
+						set = function(info, value)
+							self.db.profile.autoDisableChatEnabled = value
+						end,
+						width = "full",
+						order = 7,
+					},
+					autoDisableChatDescription = {
+						type = "description",
+						name = "When enabled, chat will be automatically disabled during solo shuffle matches and re-enabled afterwards.",
+						width = "full",
+						order = 8,
 					},
 				},
 			},
@@ -184,6 +222,50 @@ function QueueNotifier:SetupOptions()
 
 	LibStub("AceConfig-3.0"):RegisterOptionsTable(addonName, options, { "/qn" })
 	self.optionsFrame = LibStub("AceConfigDialog-3.0"):AddToBlizOptions(addonName, addonName)
+end
+
+-- Function to disable chat
+function QueueNotifier:DisableChat()
+	if self.chatEnabled then
+		ChatFrame1:UnregisterEvent("CHAT_MSG_SAY")
+		ChatFrame1:UnregisterEvent("CHAT_MSG_YELL")
+		ChatFrame1:UnregisterEvent("CHAT_MSG_PARTY")
+		ChatFrame1:UnregisterEvent("CHAT_MSG_PARTY_LEADER")
+		ChatFrame1:UnregisterEvent("CHAT_MSG_RAID")
+		ChatFrame1:UnregisterEvent("CHAT_MSG_RAID_LEADER")
+		ChatFrame1:UnregisterEvent("CHAT_MSG_RAID_WARNING")
+		ChatFrame1:UnregisterEvent("CHAT_MSG_INSTANCE_CHAT")
+		ChatFrame1:UnregisterEvent("CHAT_MSG_INSTANCE_CHAT_LEADER")
+		ChatFrame1:UnregisterEvent("CHAT_MSG_CHANNEL")
+		self.chatEnabled = false
+		self:Print("Chat disabled for solo shuffle match.")
+	end
+end
+
+-- Function to enable chat
+function QueueNotifier:EnableChat()
+	if not self.chatEnabled then
+		ChatFrame1:RegisterEvent("CHAT_MSG_SAY")
+		ChatFrame1:RegisterEvent("CHAT_MSG_YELL")
+		ChatFrame1:RegisterEvent("CHAT_MSG_PARTY")
+		ChatFrame1:RegisterEvent("CHAT_MSG_PARTY_LEADER")
+		ChatFrame1:RegisterEvent("CHAT_MSG_RAID")
+		ChatFrame1:RegisterEvent("CHAT_MSG_RAID_LEADER")
+		ChatFrame1:RegisterEvent("CHAT_MSG_RAID_WARNING")
+		ChatFrame1:RegisterEvent("CHAT_MSG_INSTANCE_CHAT")
+		ChatFrame1:RegisterEvent("CHAT_MSG_INSTANCE_CHAT_LEADER")
+		ChatFrame1:RegisterEvent("CHAT_MSG_CHANNEL")
+		self.chatEnabled = true
+		self:Print("Chat enabled after solo shuffle match.")
+	end
+end
+
+-- Event handler for entering the world
+function QueueNotifier:OnPlayerEnteringWorld()
+	local _, instanceType = IsInInstance()
+	if instanceType ~= "pvp" and instanceType ~= "arena" then
+		self:EnableChat()
+	end
 end
 
 function QueueNotifier:OnEvent(event, ...)
@@ -196,6 +278,16 @@ end
 --- @param battlefieldIndex number The index of the battlefield
 function QueueNotifier:HandleBattlefieldEventWithIndex(battlefieldIndex)
 	local status, _, _, _, _, queueType, _, _, _, _, _ = GetBattlefieldStatus(battlefieldIndex)
+
+	if queueType == "BRAWLSOLORBG" then -- Replace with the correct queue type for solo shuffle
+		if status == "active" then
+			if self.db.profile.autoDisableChatEnabled then
+				self:DisableChat()
+			end
+		elseif status == "none" then
+			self:EnableChat()
+		end
+	end
 
 	local playerGUID = UnitGUID("player")
 	local playerName = UnitName("player")
