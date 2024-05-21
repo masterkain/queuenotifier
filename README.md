@@ -1,5 +1,9 @@
 # QueueNotifier
 
+<p align="center">
+  <img src="banner.png" alt="QueueNotifier Banner">
+</p>
+
 QueueNotifier is a World of Warcraft addon designed to enhance your PvP experience by providing detailed information about your and your guild members' battleground queue statuses.
 
 ## Features
