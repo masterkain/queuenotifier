@@ -60,23 +60,9 @@ function QueueNotifier:OnInitialize()
 	self:RegisterEvent("UPDATE_BATTLEFIELD_STATUS", "OnEvent")
 	self:RegisterEvent("PLAYER_ENTERING_WORLD", "OnPlayerEnteringWorld")
 	self:RegisterComm(addonName)
-	self:PrintStartupMessage()
 	icon:Register(addonName, LDB, self.db.profile.minimap)
 	self.guildQueueTable = {} -- Initialize the table to track queue statuses
-	self.chatEnabled = true -- Track the chat status
-end
-
-function QueueNotifier:PrintStartupMessage()
-	if self.db.profile.screenshotEnabled then
-		self:Print("TGA screenshots are enabled.")
-	else
-		self:Print("TGA screenshots are disabled.")
-	end
-	if self.db.profile.broadcastEnabled then
-		self:Print("Queue Data Sharing is enabled.")
-	else
-		self:Print("Queue Data Sharing is disabled.")
-	end
+	self.chatDisabledForSoloShuffle = false -- Track the chat status for solo shuffle
 end
 
 function QueueNotifier:UpgradeAvailable(newVersion)
@@ -116,7 +102,6 @@ function QueueNotifier:SetupOptions()
 						fontSize = "medium",
 						order = 1,
 					},
-
 					description = {
 						type = "description",
 						name = [[QueueNotifier is designed to enhance your PvP experience.
@@ -225,7 +210,7 @@ end
 
 -- Function to disable chat
 function QueueNotifier:DisableChat()
-	if self.chatEnabled then
+	if not self.chatDisabledForSoloShuffle then
 		ChatFrame1:UnregisterEvent("CHAT_MSG_SAY")
 		ChatFrame1:UnregisterEvent("CHAT_MSG_YELL")
 		ChatFrame1:UnregisterEvent("CHAT_MSG_PARTY")
@@ -236,14 +221,14 @@ function QueueNotifier:DisableChat()
 		ChatFrame1:UnregisterEvent("CHAT_MSG_INSTANCE_CHAT")
 		ChatFrame1:UnregisterEvent("CHAT_MSG_INSTANCE_CHAT_LEADER")
 		ChatFrame1:UnregisterEvent("CHAT_MSG_CHANNEL")
-		self.chatEnabled = false
+		self.chatDisabledForSoloShuffle = true
 		self:Print("Chat disabled for solo shuffle match.")
 	end
 end
 
 -- Function to enable chat
 function QueueNotifier:EnableChat()
-	if not self.chatEnabled then
+	if self.chatDisabledForSoloShuffle then
 		ChatFrame1:RegisterEvent("CHAT_MSG_SAY")
 		ChatFrame1:RegisterEvent("CHAT_MSG_YELL")
 		ChatFrame1:RegisterEvent("CHAT_MSG_PARTY")
@@ -254,7 +239,7 @@ function QueueNotifier:EnableChat()
 		ChatFrame1:RegisterEvent("CHAT_MSG_INSTANCE_CHAT")
 		ChatFrame1:RegisterEvent("CHAT_MSG_INSTANCE_CHAT_LEADER")
 		ChatFrame1:RegisterEvent("CHAT_MSG_CHANNEL")
-		self.chatEnabled = true
+		self.chatDisabledForSoloShuffle = false
 		self:Print("Chat enabled after solo shuffle match.")
 	end
 end
@@ -278,7 +263,7 @@ end
 function QueueNotifier:HandleBattlefieldEventWithIndex(battlefieldIndex)
 	local status, _, _, _, _, queueType, _, _, _, _, _ = GetBattlefieldStatus(battlefieldIndex)
 
-	if queueType == "BRAWLSOLORBG" then -- Replace with the correct queue type for solo shuffle
+	if queueType == "BRAWLSOLORBG" then -- Ensure this is the correct queue type for solo shuffle
 		if status == "active" then
 			if self.db.profile.autoDisableChatEnabled then
 				self:DisableChat()
@@ -292,15 +277,6 @@ function QueueNotifier:HandleBattlefieldEventWithIndex(battlefieldIndex)
 	local playerName = UnitName("player")
 	local playerClass, _ = UnitClassBase("player")
 	local key = playerGUID .. "-" .. tostring(battlefieldIndex)
-
-	-- self:Print(key)
-	-- queued - Waiting for a battlefield to become ready, you're in the queue
-	-- confirm - Ready to join a battlefield
-	-- active - Inside an active battlefield
-	-- none - Not queued for anything in this index
-	-- error - This should never happen
-	-- self:Print("status: " .. tostring(status)) -- none, queued, confirm, active
-	-- self:Print("queueType: " .. tostring(queueType)) -- BRAWLSOLORBG. BATTLEGROUND
 
 	if status == "confirm" and self.db.profile.screenshotEnabled then
 		self:TakeEnhancedScreenshot()
@@ -404,9 +380,6 @@ function QueueNotifier:OnCommReceived(prefix, message, distribution, sender)
 	end
 	local success, payload = self:Deserialize(message)
 	if success then
-		-- if self:UpgradeAvailable(self.ADDON_VERSION, payload.addonVersion) then
-		-- 	self:Print(string.format("A new version (%s) is available. Please update!", payload.addonVersion))
-		-- end
 		self:UpdateGuildQueueTable(payload)
 	end
 end
