@@ -116,18 +116,17 @@ function QueueNotifier:SetupOptions()
 						fontSize = "medium",
 						order = 1,
 					},
-					logo = {
-						name = "",
-						type = "description",
-						image = "Interface\\AddOns\\QueueNotifier\\logo.png",
-						imageWidth = 64,
-						imageHeight = 64,
-						width = "full",
-						order = 2,
-					},
+
 					description = {
 						type = "description",
-						name = "QueueNotifier is a World of Warcraft addon designed to enhance your PvP experience by providing detailed information about your and your guild members' battleground queue statuses.\n\nFeatures:\n- Screenshots on Queue pop: Automatically take TGA screenshots when the battlefield is ready to be entered.\n- Guild Queue Data Sharing: Share and view your guild members' PvP queue statuses.\n- Queue Status Display: Display queue statuses in a tooltip when hovering over the minimap icon.\n- Chat Notifications: Receive chat notifications about your queue statuses.",
+						name = [[QueueNotifier is designed to enhance your PvP experience.
+
+Features:
+- Screenshots on Queue Pop: Automatically take TGA screenshots when the battlefield is ready to be entered.
+- Guild Queue Data Sharing: Share and view your guild members' PvP queue statuses.
+- Queue Status Display: Display queue statuses in a tooltip when hovering over the minimap icon.
+- Chat Notifications: Receive chat notifications about your queue statuses.
+- Auto Disable Chat During Solo Shuffle: Automatically disable chat during solo shuffle matches and re-enable it afterwards.]],
 						width = "full",
 						fontSize = "medium",
 						order = 3,
