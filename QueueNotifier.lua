@@ -230,32 +230,35 @@ end
 
 -- Event handler for entering the world
 function QueueNotifier:OnPlayerEnteringWorld()
-	local _, instanceType = IsInInstance()
-	if not (instanceType == "pvp" or instanceType == "arena") then
-		self:EnableChat()
-	end
+	self:AdjustChatForSoloShuffle()
 end
 
 function QueueNotifier:OnZoneChanged()
-	local _, instanceType = IsInInstance()
-	if instanceType == "pvp" or instanceType == "arena" then
-		if C_PvP.IsRatedSoloShuffle() and self.db.profile.autoDisableChatEnabled then
-			self:DisableChat()
-		end
-	else
-		self:EnableChat()
-	end
+	self:AdjustChatForSoloShuffle()
 end
 
 function QueueNotifier:OnPlayerLogout()
 	if self.chatDisabledForSoloShuffle then
-		self:EnableChat()
+		self:EnableChat() -- Ensure chat is enabled on logout
 	end
 end
 
 function QueueNotifier:OnEvent(event, ...)
 	if event == "UPDATE_BATTLEFIELD_STATUS" then
 		self:HandleBattlefieldEventWithIndex(...)
+	end
+end
+
+function QueueNotifier:AdjustChatForSoloShuffle()
+	local _, instanceType = IsInInstance()
+	if instanceType == "pvp" or instanceType == "arena" then
+		if C_PvP.IsRatedSoloShuffle() and self.db.profile.autoDisableChatEnabled then
+			self:DisableChat()
+		else
+			self:EnableChat()
+		end
+	else
+		self:EnableChat()
 	end
 end
 
