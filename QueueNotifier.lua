@@ -61,8 +61,8 @@ function QueueNotifier:OnInitialize()
 	self:RegisterEvent("PLAYER_ENTERING_WORLD", "OnPlayerEnteringWorld")
 	self:RegisterComm(addonName)
 	icon:Register(addonName, LDB, self.db.profile.minimap)
-	self.guildQueueTable = {} -- Initialize the table to track queue statuses
-	self.chatDisabledForSoloShuffle = false -- Track the chat status for solo shuffle
+	self.guildQueueTable = {}
+	self.chatDisabledForSoloShuffle = false
 end
 
 function QueueNotifier:UpgradeAvailable(newVersion)
@@ -210,37 +210,19 @@ end
 
 -- Function to disable chat
 function QueueNotifier:DisableChat()
-	if not self.chatDisabledForSoloShuffle then
-		ChatFrame1:UnregisterEvent("CHAT_MSG_SAY")
-		ChatFrame1:UnregisterEvent("CHAT_MSG_YELL")
-		ChatFrame1:UnregisterEvent("CHAT_MSG_PARTY")
-		ChatFrame1:UnregisterEvent("CHAT_MSG_PARTY_LEADER")
-		ChatFrame1:UnregisterEvent("CHAT_MSG_RAID")
-		ChatFrame1:UnregisterEvent("CHAT_MSG_RAID_LEADER")
-		ChatFrame1:UnregisterEvent("CHAT_MSG_RAID_WARNING")
-		ChatFrame1:UnregisterEvent("CHAT_MSG_INSTANCE_CHAT")
-		ChatFrame1:UnregisterEvent("CHAT_MSG_INSTANCE_CHAT_LEADER")
-		ChatFrame1:UnregisterEvent("CHAT_MSG_CHANNEL")
-		self.chatDisabledForSoloShuffle = true
+	if not C_SocialRestrictions.IsChatDisabled() then
+		C_SocialRestrictions.SetChatDisabled(true)
 		self:Print("Chat disabled for solo shuffle match.")
+		self.chatDisabledForSoloShuffle = true
 	end
 end
 
 -- Function to enable chat
 function QueueNotifier:EnableChat()
 	if self.chatDisabledForSoloShuffle then
-		ChatFrame1:RegisterEvent("CHAT_MSG_SAY")
-		ChatFrame1:RegisterEvent("CHAT_MSG_YELL")
-		ChatFrame1:RegisterEvent("CHAT_MSG_PARTY")
-		ChatFrame1:RegisterEvent("CHAT_MSG_PARTY_LEADER")
-		ChatFrame1:RegisterEvent("CHAT_MSG_RAID")
-		ChatFrame1:RegisterEvent("CHAT_MSG_RAID_LEADER")
-		ChatFrame1:RegisterEvent("CHAT_MSG_RAID_WARNING")
-		ChatFrame1:RegisterEvent("CHAT_MSG_INSTANCE_CHAT")
-		ChatFrame1:RegisterEvent("CHAT_MSG_INSTANCE_CHAT_LEADER")
-		ChatFrame1:RegisterEvent("CHAT_MSG_CHANNEL")
-		self.chatDisabledForSoloShuffle = false
+		C_SocialRestrictions.SetChatDisabled(false)
 		self:Print("Chat enabled after solo shuffle match.")
+		self.chatDisabledForSoloShuffle = false
 	end
 end
 
@@ -263,11 +245,9 @@ end
 function QueueNotifier:HandleBattlefieldEventWithIndex(battlefieldIndex)
 	local status, _, _, _, _, queueType, _, _, _, _, _ = GetBattlefieldStatus(battlefieldIndex)
 
-	if queueType == "BRAWLSOLORBG" then -- Ensure this is the correct queue type for solo shuffle
-		if status == "active" then
-			if self.db.profile.autoDisableChatEnabled then
-				self:DisableChat()
-			end
+	if C_PvP.IsRatedSoloShuffle() then
+		if status == "active" and self.db.profile.autoDisableChatEnabled then
+			self:DisableChat()
 		elseif status == "none" then
 			self:EnableChat()
 		end
