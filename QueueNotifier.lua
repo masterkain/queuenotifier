@@ -59,6 +59,8 @@ function QueueNotifier:OnInitialize()
 	self:SetupOptions()
 	self:RegisterEvent("UPDATE_BATTLEFIELD_STATUS", "OnEvent")
 	self:RegisterEvent("PLAYER_ENTERING_WORLD", "OnPlayerEnteringWorld")
+	self:RegisterEvent("ZONE_CHANGED_NEW_AREA", "OnZoneChanged")
+	self:RegisterEvent("PLAYER_LOGOUT", "OnPlayerLogout")
 	self:RegisterComm(addonName)
 	icon:Register(addonName, LDB, self.db.profile.minimap)
 	self.guildQueueTable = {}
@@ -229,7 +231,24 @@ end
 -- Event handler for entering the world
 function QueueNotifier:OnPlayerEnteringWorld()
 	local _, instanceType = IsInInstance()
-	if instanceType ~= "pvp" and instanceType ~= "arena" then
+	if not (instanceType == "pvp" or instanceType == "arena") then
+		self:EnableChat()
+	end
+end
+
+function QueueNotifier:OnZoneChanged()
+	local _, instanceType = IsInInstance()
+	if instanceType == "pvp" or instanceType == "arena" then
+		if C_PvP.IsRatedSoloShuffle() and self.db.profile.autoDisableChatEnabled then
+			self:DisableChat()
+		end
+	else
+		self:EnableChat()
+	end
+end
+
+function QueueNotifier:OnPlayerLogout()
+	if self.chatDisabledForSoloShuffle then
 		self:EnableChat()
 	end
 end
