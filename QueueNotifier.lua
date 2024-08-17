@@ -56,7 +56,16 @@ function QueueNotifier:OnInitialize()
 			},
 		},
 	})
+
 	self:SetupOptions()
+
+	-- Register settings category with the new API
+	if Settings and Settings.RegisterCanvasLayoutCategory then
+		local category, layout = Settings.RegisterCanvasLayoutCategory(self.optionsFrame, addonName)
+		Settings.RegisterAddOnCategory(category)
+		self.settingsCategory = category -- Save the category for later use
+	end
+
 	self:RegisterEvent("UPDATE_BATTLEFIELD_STATUS", "OnEvent")
 	self:RegisterEvent("PLAYER_ENTERING_WORLD", "OnPlayerEnteringWorld")
 	self:RegisterEvent("ZONE_CHANGED_NEW_AREA", "OnZoneChanged")
@@ -432,6 +441,14 @@ function QueueNotifier:UpdateTooltip(tooltip)
 end
 
 function QueueNotifier:ShowOptions()
-	InterfaceOptionsFrame_OpenToCategory(self.optionsFrame)
-	InterfaceOptionsFrame_OpenToCategory(self.optionsFrame)
+	if Settings and Settings.OpenToCategory then
+		-- Open the category using its ID if it's been registered
+		if self.settingsCategory then
+			Settings.OpenToCategory(self.settingsCategory.ID)
+		end
+	else
+		-- Fallback for older WoW versions
+		InterfaceOptionsFrame_OpenToCategory(self.optionsFrame)
+		InterfaceOptionsFrame_OpenToCategory(self.optionsFrame)
+	end
 end
