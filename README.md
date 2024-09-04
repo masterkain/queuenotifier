@@ -13,6 +13,7 @@ QueueNotifier is a World of Warcraft addon designed to enhance your PvP experien
 - 🛠️ **Queue Status Display:** Display queue statuses in a tooltip when hovering over the minimap icon.
 - 💬 **Chat Notifications:** Receive chat notifications about your queue statuses.
 - 🔇 **Auto Disable Chat During Solo Shuffle:** Automatically disable chat during solo shuffle matches and re-enable it afterwards.
+- ✋ **Disable Auto Push Spell to Action Bar:** Prevent newly learned spells from automatically being added to your action bar.
 
 ## 🚀 Getting Started
 
@@ -30,6 +31,7 @@ QueueNotifier is a World of Warcraft addon designed to enhance your PvP experien
 - **Send and Receive Guild Queue Data:** Enable or disable sharing and viewing guild members' queue statuses.
 - **Enable Queue Chat Messages:** Toggle queue status messages in the chat.
 - **Auto Disable Chat During Solo Shuffle:** Enable or disable automatic chat disabling during solo shuffle matches.
+- **Disable Auto Push Spell to Action Bar:** Prevent newly learned spells from being automatically added to your action bar.
 
 ## 🤝 Contributing
 
