@@ -45,6 +45,7 @@ local LDB = LibStub("LibDataBroker-1.1"):NewDataObject(addonName, {
 local icon = LibStub("LibDBIcon-1.0")
 
 function QueueNotifier:OnInitialize()
+	-- Initialize database
 	self.db = LibStub("AceDB-3.0"):New("QueueNotifierDB", {
 		profile = {
 			screenshotEnabled = false,
@@ -56,7 +57,19 @@ function QueueNotifier:OnInitialize()
 			},
 		},
 	})
+
 	self:SetupOptions()
+
+	-- Apply the AutoPushSpellToActionBar setting during initialization based on the current CVar value
+	self:ApplyAutoPushSpellSetting()
+
+	-- Register settings category with the new API
+	if Settings and Settings.RegisterCanvasLayoutCategory then
+		local category, layout = Settings.RegisterCanvasLayoutCategory(self.optionsFrame, addonName)
+		Settings.RegisterAddOnCategory(category)
+		self.settingsCategory = category -- Save the category for later use
+	end
+
 	self:RegisterEvent("UPDATE_BATTLEFIELD_STATUS", "OnEvent")
 	self:RegisterEvent("PLAYER_ENTERING_WORLD", "OnPlayerEnteringWorld")
 	self:RegisterEvent("ZONE_CHANGED_NEW_AREA", "OnZoneChanged")
@@ -113,7 +126,8 @@ Features:
 - Guild Queue Data Sharing: Share and view your guild members' PvP queue statuses.
 - Queue Status Display: Display queue statuses in a tooltip when hovering over the minimap icon.
 - Chat Notifications: Receive chat notifications about your queue statuses.
-- Auto Disable Chat During Solo Shuffle: Automatically disable chat during solo shuffle matches and re-enable it afterwards.]],
+- Auto Disable Chat During Solo Shuffle: Automatically disable chat during solo shuffle matches and re-enable it afterwards.
+- Disable Auto Push Spell to Action Bar: Prevent newly learned spells from automatically being added to your action bar.]],
 						width = "full",
 						fontSize = "medium",
 						order = 3,
@@ -178,7 +192,7 @@ Features:
 					},
 					chatPrintDescription = {
 						type = "description",
-						name = "When enabled, this feature will print queue statuses in the chat.",
+						name = "When enabled, this feature will print queue statuses in your chat window.",
 						width = "full",
 						order = 6,
 					},
@@ -201,6 +215,27 @@ Features:
 						width = "full",
 						order = 8,
 					},
+					autoPushSpellToActionBarDisabled = {
+						type = "toggle",
+						name = "Disable Auto Push Spell To Action Bar",
+						desc = "Prevents newly learned spells from being automatically added to your action bar.",
+						get = function(info)
+							-- Read the value directly from the CVar
+							return GetCVar("AutoPushSpellToActionBar") == "0"
+						end,
+						set = function(info, value)
+							-- Set the CVar based on the toggle state
+							SetCVar("AutoPushSpellToActionBar", value and "0" or "1")
+						end,
+						width = "full",
+						order = 9,
+					},
+					autoPushSpellToActionBarDisabledDescription = {
+						type = "description",
+						name = "When enabled, this feature will prevent newly learned spells from being automatically pushed to your action bar, giving you full control over which spells you add and where.",
+						width = "full",
+						order = 10,
+					},
 				},
 			},
 		},
@@ -208,6 +243,16 @@ Features:
 
 	LibStub("AceConfig-3.0"):RegisterOptionsTable(addonName, options, { "/qn" })
 	self.optionsFrame = LibStub("AceConfigDialog-3.0"):AddToBlizOptions(addonName, addonName)
+end
+
+function QueueNotifier:ApplyAutoPushSpellSetting()
+	-- Apply the current value of the CVar directly
+	local autoPushDisabled = GetCVar("AutoPushSpellToActionBar") == "0"
+	if autoPushDisabled then
+		SetCVar("AutoPushSpellToActionBar", 0)
+	else
+		SetCVar("AutoPushSpellToActionBar", 1)
+	end
 end
 
 -- Function to disable chat
@@ -432,6 +477,14 @@ function QueueNotifier:UpdateTooltip(tooltip)
 end
 
 function QueueNotifier:ShowOptions()
-	InterfaceOptionsFrame_OpenToCategory(self.optionsFrame)
-	InterfaceOptionsFrame_OpenToCategory(self.optionsFrame)
+	if Settings and Settings.OpenToCategory then
+		-- Open the category using its ID if it's been registered
+		if self.settingsCategory then
+			Settings.OpenToCategory(self.settingsCategory.ID)
+		end
+	else
+		-- Fallback for older WoW versions
+		InterfaceOptionsFrame_OpenToCategory(self.optionsFrame)
+		InterfaceOptionsFrame_OpenToCategory(self.optionsFrame)
+	end
 end
