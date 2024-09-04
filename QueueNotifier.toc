@@ -1,9 +1,9 @@
-## Interface: 100207, 110000
+## Interface: 110002
 ## Title: QueueNotifier
 ## Notes: Track and share battlefield queue statuses with your guild, and automatically take screenshots on queue pop.
 ## IconTexture: Interface\AddOns\QueueNotifier\logo.tga
 ## Author: Kain
-## Version: 1.0.5
+## Version: 1.0.6
 ## SavedVariablesPerCharacter: QueueNotifierDB
 ## X-Curse-Project-ID: 1022175
 
