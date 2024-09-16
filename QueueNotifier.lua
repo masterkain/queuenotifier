@@ -42,8 +42,6 @@ local LDB = LibStub("LibDataBroker-1.1"):NewDataObject(addonName, {
 	end,
 })
 
-local icon = LibStub("LibDBIcon-1.0")
-
 function QueueNotifier:OnInitialize()
 	-- Initialize database
 	self.db = LibStub("AceDB-3.0"):New("QueueNotifierDB", {
@@ -58,24 +56,26 @@ function QueueNotifier:OnInitialize()
 		},
 	})
 
+	-- Set up options using AceConfig
 	self:SetupOptions()
 
 	-- Apply the AutoPushSpellToActionBar setting during initialization based on the current CVar value
 	self:ApplyAutoPushSpellSetting()
 
-	-- Register settings category with the new API
-	if Settings and Settings.RegisterCanvasLayoutCategory then
-		local category, layout = Settings.RegisterCanvasLayoutCategory(self.optionsFrame, addonName)
-		Settings.RegisterAddOnCategory(category)
-		self.settingsCategory = category -- Save the category for later use
-	end
-
+	-- Register events
 	self:RegisterEvent("UPDATE_BATTLEFIELD_STATUS", "OnEvent")
 	self:RegisterEvent("PLAYER_ENTERING_WORLD", "OnPlayerEnteringWorld")
 	self:RegisterEvent("ZONE_CHANGED_NEW_AREA", "OnZoneChanged")
 	self:RegisterEvent("PLAYER_LOGOUT", "OnPlayerLogout")
+
+	-- Register communication channels
 	self:RegisterComm(addonName)
+
+	-- Register minimap icon with LibDBIcon
+	local icon = LibStub("LibDBIcon-1.0")
 	icon:Register(addonName, LDB, self.db.profile.minimap)
+
+	-- Initialize additional properties
 	self.guildQueueTable = {}
 	self.chatDisabledForSoloShuffle = false
 end
@@ -241,8 +241,16 @@ Features:
 		},
 	}
 
-	LibStub("AceConfig-3.0"):RegisterOptionsTable(addonName, options, { "/qn" })
+	-- Register options with AceConfig
+	LibStub("AceConfig-3.0"):RegisterOptionsTable(addonName, options)
+
+	-- Register options in the Blizzard Interface Options panel and store the reference
 	self.optionsFrame = LibStub("AceConfigDialog-3.0"):AddToBlizOptions(addonName, addonName)
+
+	-- Register slash command to open options
+	LibStub("AceConsole-3.0"):RegisterChatCommand("qn", function()
+		QueueNotifier:ShowOptions()
+	end)
 end
 
 function QueueNotifier:ApplyAutoPushSpellSetting()
@@ -310,7 +318,7 @@ end
 --- Handle the battlefield event
 --- @param battlefieldIndex number The index of the battlefield
 function QueueNotifier:HandleBattlefieldEventWithIndex(battlefieldIndex)
-	local status, _, _, _, _, queueType, _, _, _, _, _ = GetBattlefieldStatus(battlefieldIndex)
+	local status, _, _, _, _, queueType = GetBattlefieldStatus(battlefieldIndex)
 
 	if C_PvP.IsRatedSoloShuffle() then
 		if status == "active" and self.db.profile.autoDisableChatEnabled then
@@ -320,9 +328,30 @@ function QueueNotifier:HandleBattlefieldEventWithIndex(battlefieldIndex)
 		end
 	end
 
+	-- Retrieve the roles selected for PvP queues
+	local tankRole, healerRole, dpsRole = GetPVPRoles()
+	local roleList = {}
+
+	if tankRole then
+		table.insert(roleList, "TANK")
+	end
+	if healerRole then
+		table.insert(roleList, "HEALER")
+	end
+	if dpsRole then
+		table.insert(roleList, "DAMAGER")
+	end
+
+	local rolesString = table.concat(roleList, ", ")
+
+	-- If the player has selected the TANK role, display a red warning message
+	if tankRole and status == "queued" then
+		self:Print(self.COLOR.RED .. "Warning: You are queueing as a TANK role!" .. self.COLOR.RESET)
+	end
+
 	local playerGUID = UnitGUID("player")
 	local playerName = UnitName("player")
-	local playerClass, _ = UnitClassBase("player")
+	local _, playerClass = UnitClass("player")
 	local key = playerGUID .. "-" .. tostring(battlefieldIndex)
 
 	if status == "confirm" and self.db.profile.screenshotEnabled then
@@ -337,9 +366,14 @@ function QueueNotifier:HandleBattlefieldEventWithIndex(battlefieldIndex)
 	local formattedTimeDifference, timePassedColor = self:GetTimeDifference(timeDifference, estimatedWaitTime)
 
 	if self.db.profile.chatPrintEnabled and (status == "queued" or status == "confirm") then
+		local rolesSuffix = ""
+		if rolesString ~= "" then
+			rolesSuffix = " as " .. rolesString
+		end
+
 		self:Print(
 			string.format(
-				"%s%s%s %s%s%s (%s / %s %s%s%s)%s",
+				"%s%s%s %s%s%s (%s / %s %s%s%s)%s%s",
 				self.COLOR.GOLD,
 				self.STATUS_COLOR[status or "none"] or self.COLOR.GRAY,
 				status or "none",
@@ -351,7 +385,8 @@ function QueueNotifier:HandleBattlefieldEventWithIndex(battlefieldIndex)
 				timePassedColor or "",
 				formattedTimeDifference or "",
 				self.COLOR.RESET,
-				self.COLOR.RESET
+				self.COLOR.RESET,
+				rolesSuffix
 			)
 		)
 	end
@@ -365,6 +400,7 @@ function QueueNotifier:HandleBattlefieldEventWithIndex(battlefieldIndex)
 		timeWaited = formattedTimeWaited,
 		estimatedWaitTime = formattedEstimatedWaitTime,
 		timeDifference = formattedTimeDifference,
+		roles = rolesString,
 		addonVersion = self.ADDON_VERSION,
 	}
 
@@ -456,20 +492,25 @@ function QueueNotifier:UpdateTooltip(tooltip)
 	for key, data in pairs(self.guildQueueTable) do
 		local classColor = RAID_CLASS_COLORS[data.class]
 
-		-- If classColor is nil, use a default gray color
 		if not classColor then
-			classColor = { colorStr = "FF808080" } -- Just the hex code, no |c
+			classColor = { colorStr = "FF808080" }
+		end
+
+		local rolesSuffix = ""
+		if data.roles and data.roles ~= "" then
+			rolesSuffix = " as " .. data.roles
 		end
 
 		local line = string.format(
-			"|c%s%s|r: %s%s|r (%s) - %s / %s",
+			"|c%s%s|r: %s%s|r (%s) - %s / %s%s",
 			classColor.colorStr,
 			data.player,
 			self.STATUS_COLOR[data.status],
 			data.status,
 			data.queueType,
 			data.timeWaited,
-			data.estimatedWaitTime
+			data.estimatedWaitTime,
+			rolesSuffix
 		)
 		tooltip:AddLine(line)
 	end
@@ -478,13 +519,11 @@ end
 
 function QueueNotifier:ShowOptions()
 	if Settings and Settings.OpenToCategory then
-		-- Open the category using its ID if it's been registered
-		if self.settingsCategory then
-			Settings.OpenToCategory(self.settingsCategory.ID)
-		end
+		-- Use the new Settings API if available
+		Settings.OpenToCategory(self.optionsFrame.name)
 	else
-		-- Fallback for older WoW versions
+		-- Fallback for older WoW versions using InterfaceOptionsFrame_OpenToCategory
 		InterfaceOptionsFrame_OpenToCategory(self.optionsFrame)
-		InterfaceOptionsFrame_OpenToCategory(self.optionsFrame)
+		InterfaceOptionsFrame_OpenToCategory(self.optionsFrame) -- Double call to ensure proper display
 	end
 end
