@@ -28,6 +28,18 @@ QueueNotifier.STATUS_COLOR = {
 	none = QueueNotifier.COLOR.GRAY,
 }
 
+-- Constants for Vicious Flask of Honor
+local FLASK_ITEM_ID = 212292
+local FLASK_BUFF_ID = 432430
+local FLASK_REMAINING_THRESHOLD = 600 -- 600 seconds = 10 minutes
+-- Role Icons
+
+local ROLE_ICONS = {
+	TANK = "|TInterface\\LFGFrame\\UI-LFG-ICON-PORTRAITROLES:16:16:0:0:64:64:0:19:22:41|t",
+	HEALER = "|TInterface\\LFGFrame\\UI-LFG-ICON-PORTRAITROLES:16:16:0:0:64:64:20:39:1:20|t",
+	DAMAGER = "|TInterface\\LFGFrame\\UI-LFG-ICON-PORTRAITROLES:16:16:0:0:64:64:20:39:22:41|t",
+}
+
 local LDB = LibStub("LibDataBroker-1.1"):NewDataObject(addonName, {
 	type = "data source",
 	text = addonName,
@@ -42,6 +54,14 @@ local LDB = LibStub("LibDataBroker-1.1"):NewDataObject(addonName, {
 	end,
 })
 
+function QueueNotifier:debugPrint(...)
+	if self.db.profile.debugMode then
+		-- Prefix all debug messages with [DEBUG]
+		local message = string.format("|cffFFD700[DEBUG]|r %s", table.concat({ ... }, " "))
+		self:Print(message)
+	end
+end
+
 function QueueNotifier:OnInitialize()
 	-- Initialize database
 	self.db = LibStub("AceDB-3.0"):New("QueueNotifierDB", {
@@ -53,6 +73,8 @@ function QueueNotifier:OnInitialize()
 			minimap = {
 				hide = false,
 			},
+			debugMode = false,
+			flaskTimeThreshold = 600, -- Default to 600 seconds (10 minutes)
 		},
 	})
 
@@ -236,6 +258,35 @@ Features:
 						width = "full",
 						order = 10,
 					},
+					debugMode = {
+						type = "toggle",
+						name = "Enable Debug Mode",
+						desc = "Enable or disable verbose debug output to the chat window.",
+						get = function(info)
+							return self.db.profile.debugMode
+						end,
+						set = function(info, value)
+							self.db.profile.debugMode = value
+						end,
+						width = "full",
+						order = 11,
+					},
+					flaskTimeThreshold = {
+						type = "range",
+						name = "Flask Reminder Threshold",
+						desc = "Set the time threshold for reminding about the Vicious Flask of Honor.",
+						min = 60, -- 1 minute minimum
+						max = 1800, -- 30 minutes maximum
+						step = 60, -- 1 minute steps
+						get = function(info)
+							return self.db.profile.flaskTimeThreshold
+						end,
+						set = function(info, value)
+							self.db.profile.flaskTimeThreshold = value
+						end,
+						width = "full",
+						order = 12,
+					},
 				},
 			},
 		},
@@ -260,6 +311,73 @@ function QueueNotifier:ApplyAutoPushSpellSetting()
 		SetCVar("AutoPushSpellToActionBar", 0)
 	else
 		SetCVar("AutoPushSpellToActionBar", 1)
+	end
+end
+
+--- @param spellID number The spell ID of the buff to check
+--- @return number? Remaining time in seconds, or nil if buff not found
+function QueueNotifier:GetBuffRemainingTime(spellID)
+	-- Iterate through buffs on the player
+	for i = 1, 40 do
+		local auraData = C_UnitAuras.GetBuffDataByIndex("player", i, "HELPFUL")
+
+		if not auraData then
+			break -- No more buffs
+		end
+
+		if auraData.spellId == spellID then
+			self:debugPrint("Flask found. Expiration Time:", auraData.expirationTime)
+
+			if auraData.expirationTime and auraData.duration > 0 then
+				local currentTime = GetTime()
+				local remainingTime = auraData.expirationTime - currentTime
+				self:debugPrint("Flask Remaining Time:", remainingTime)
+				return remainingTime
+			else
+				self:debugPrint("Flask is permanent or has no expiration.")
+				return 0 -- Buff is either permanent or has no expiration
+			end
+		end
+	end
+
+	self:debugPrint("Flask not found.")
+	return nil -- Buff not found
+end
+
+--- Check if conditions are met to remind the player to use the Vicious Flask of Honor
+function QueueNotifier:CheckAndRemindFlask()
+	-- Check if the player has the Vicious Flask of Honor in their bag
+	local flaskCount = C_Item.GetItemCount(FLASK_ITEM_ID, false, false)
+
+	if flaskCount == 0 then
+		return -- Flask not found; no action needed
+	end
+
+	-- Check if the buff is active and get its remaining time
+	local remainingTime = self:GetBuffRemainingTime(FLASK_BUFF_ID)
+
+	if remainingTime then
+		-- Ensure flaskTimeThreshold is available and valid
+		local flaskTimeThreshold = self.db.profile.flaskTimeThreshold or FLASK_REMAINING_THRESHOLD
+
+		if remainingTime < flaskTimeThreshold then
+			-- Buff is active and has less than the threshold remaining
+			self:Print(string.format(
+				"%sReminder:%s Your Vicious Flask of Honor buff has less than %d minutes remaining.",
+				self.COLOR.GOLD,
+				self.COLOR.RESET,
+				flaskTimeThreshold / 60 -- Convert to minutes
+			))
+		end
+	else
+		-- Buff is not active; remind the player to use the flask
+		self:Print(
+			string.format(
+				"%sReminder:%s You have unused Vicious Flask of Honor in your bag.",
+				self.COLOR.GOLD,
+				self.COLOR.RESET
+			)
+		)
 	end
 end
 
@@ -333,13 +451,13 @@ function QueueNotifier:HandleBattlefieldEventWithIndex(battlefieldIndex)
 	local roleList = {}
 
 	if tankRole then
-		table.insert(roleList, "TANK")
+		table.insert(roleList, ROLE_ICONS.TANK)
 	end
 	if healerRole then
-		table.insert(roleList, "HEALER")
+		table.insert(roleList, ROLE_ICONS.HEALER)
 	end
 	if dpsRole then
-		table.insert(roleList, "DAMAGER")
+		table.insert(roleList, ROLE_ICONS.DAMAGER)
 	end
 
 	local rolesString = table.concat(roleList, ", ")
@@ -356,6 +474,10 @@ function QueueNotifier:HandleBattlefieldEventWithIndex(battlefieldIndex)
 
 	if status == "confirm" and self.db.profile.screenshotEnabled then
 		self:TakeEnhancedScreenshot()
+	end
+
+	if (status == "confirm" and self.db.profile.chatPrintEnabled) or self.db.profile.debugMode then
+		self:CheckAndRemindFlask()
 	end
 
 	local timeWaited = (GetBattlefieldTimeWaited(battlefieldIndex) or 0) / 1000
